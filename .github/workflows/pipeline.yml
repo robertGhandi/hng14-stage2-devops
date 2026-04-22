@@ -59,7 +59,7 @@ jobs:
           path: api/coverage.xml
 
 
-  build:
+  build_and_scan:
     runs-on: ubuntu-latest
     needs: test
 
@@ -72,6 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Wait for registry
       - name: Wait for registry
         run: |
           for i in {1..20}; do
@@ -80,15 +81,18 @@ jobs:
             sleep 2
           done
 
+      # Set TAG
       - name: Set TAG
         run: echo "TAG=${GITHUB_SHA}" >> $GITHUB_ENV
 
+      # Build images
       - name: Build images
         run: |
           docker build -t localhost:5000/api:${TAG} -t localhost:5000/api:latest ./api
           docker build -t localhost:5000/worker:${TAG} -t localhost:5000/worker:latest ./worker
           docker build -t localhost:5000/frontend:${TAG} -t localhost:5000/frontend:latest ./frontend
 
+      # Push images to local registry
       - name: Push images
         run: |
           docker push localhost:5000/api:${TAG}
@@ -100,24 +104,8 @@ jobs:
           docker push localhost:5000/frontend:${TAG}
           docker push localhost:5000/frontend:latest
 
-
-  security-scan:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build API image
-        run: docker build -t api:latest ./api
-
-      - name: Build Worker image
-        run: docker build -t worker:latest ./worker
-
-      - name: Build Frontend image
-        run: docker build -t frontend:latest ./frontend
-
-      - name: Scan API image
+      # Scan images (IMPORTANT: same job so images exist)
+      - name: Scan API
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: localhost:5000/api:latest
@@ -126,7 +114,7 @@ jobs:
           severity: CRITICAL
           exit-code: 1
 
-      - name: Scan Worker image
+      - name: Scan Worker
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: localhost:5000/worker:latest
@@ -135,7 +123,7 @@ jobs:
           severity: CRITICAL
           exit-code: 1
 
-      - name: Scan Frontend image
+      - name: Scan Frontend
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: localhost:5000/frontend:latest
