@@ -9,7 +9,6 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -73,25 +72,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Wait for registry
+        run: |
+          for i in {1..20}; do
+            curl -s http://localhost:5000/v2/ && break
+            echo "waiting for registry..."
+            sleep 2
+          done
+
       - name: Set TAG
         run: echo "TAG=${GITHUB_SHA}" >> $GITHUB_ENV
 
       - name: Build images
         run: |
-          docker build -t registry:5000/api:${TAG} -t registry:5000/api:latest ./api
-          docker build -t registry:5000/worker:${TAG} -t registry:5000/worker:latest ./worker
-          docker build -t registry:5000/frontend:${TAG} -t registry:5000/frontend:latest ./frontend
+          docker build -t localhost:5000/api:${TAG} -t localhost:5000/api:latest ./api
+          docker build -t localhost:5000/worker:${TAG} -t localhost:5000/worker:latest ./worker
+          docker build -t localhost:5000/frontend:${TAG} -t localhost:5000/frontend:latest ./frontend
 
       - name: Push images
         run: |
-          docker push registry:5000/api:${TAG}
-          docker push registry:5000/api:latest
+          docker push localhost:5000/api:${TAG}
+          docker push localhost:5000/api:latest
 
-          docker push registry:5000/worker:${TAG}
-          docker push registry:5000/worker:latest
+          docker push localhost:5000/worker:${TAG}
+          docker push localhost:5000/worker:latest
 
-          docker push registry:5000/frontend:${TAG}
-          docker push registry:5000/frontend:latest
+          docker push localhost:5000/frontend:${TAG}
+          docker push localhost:5000/frontend:latest
 
 
   security-scan:
@@ -104,7 +111,7 @@ jobs:
       - name: Scan API image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: registry:5000/api:latest
+          image-ref: localhost:5000/api:latest
           format: sarif
           output: trivy-api.sarif
           severity: CRITICAL
@@ -113,7 +120,7 @@ jobs:
       - name: Scan Worker image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: registry:5000/worker:latest
+          image-ref: localhost:5000/worker:latest
           format: sarif
           output: trivy-worker.sarif
           severity: CRITICAL
@@ -122,7 +129,7 @@ jobs:
       - name: Scan Frontend image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: registry:5000/frontend:latest
+          image-ref: localhost:5000/frontend:latest
           format: sarif
           output: trivy-frontend.sarif
           severity: CRITICAL
