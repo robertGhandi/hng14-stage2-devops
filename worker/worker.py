@@ -36,4 +36,3 @@ while True:
     except Exception as e:
         print(f"Worker error: {e}")
         time.sleep(2)
-
