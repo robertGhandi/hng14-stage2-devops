@@ -13,6 +13,7 @@ r = redis.Redis(
     decode_responses=True
 )
 
+
 def process_job(job_id):
     print(f"Processing job {job_id}")
     time.sleep(2)
@@ -35,3 +36,4 @@ while True:
     except Exception as e:
         print(f"Worker error: {e}")
         time.sleep(2)
+
