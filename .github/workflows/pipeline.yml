@@ -37,7 +37,7 @@ jobs:
       - name: Lint JavaScript
         run: |
           cd frontend
-          npx eslint . 
+          npx eslint .
 
       - name: Lint Dockerfiles
         uses: hadolint/hadolint-action@v3.1.0
@@ -71,6 +71,7 @@ jobs:
         with:
           name: coverage-report
           path: api/coverage.xml
+
   build:
     runs-on: ubuntu-latest
     needs: test
@@ -115,12 +116,26 @@ jobs:
           docker push localhost:5000/frontend:${TAG}
           docker push localhost:5000/frontend:latest
 
-    security-scan:
-      runs-on: ubuntu-latest
-      needs: build
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build
+
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Wait for registry
+        run: |
+          for i in {1..10}; do
+            curl -s http://localhost:5000/v2/ && break
+            echo "Waiting for registry..."
+            sleep 2
+          done
 
       - name: Scan API image
         uses: aquasecurity/trivy-action@0.20.0
