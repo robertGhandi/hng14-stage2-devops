@@ -115,7 +115,7 @@ jobs:
         run: docker build -t worker:latest ./worker
 
       - name: Build Frontend image
-      run: docker build -t frontend:latest ./frontend
+        run: docker build -t frontend:latest ./frontend
 
       - name: Scan API image
         uses: aquasecurity/trivy-action@master
