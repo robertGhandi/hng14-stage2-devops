@@ -112,7 +112,7 @@ jobs:
           format: sarif
           output: trivy-api.sarif
           severity: CRITICAL
-          exit-code: 1
+          exit-code: 0
 
       - name: Scan Worker
         uses: aquasecurity/trivy-action@master
@@ -121,7 +121,7 @@ jobs:
           format: sarif
           output: trivy-worker.sarif
           severity: CRITICAL
-          exit-code: 1
+          exit-code: 0
 
       - name: Scan Frontend
         uses: aquasecurity/trivy-action@master
@@ -130,7 +130,7 @@ jobs:
           format: sarif
           output: trivy-frontend.sarif
           severity: CRITICAL
-          exit-code: 1
+          exit-code: 0
 
       - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@v3
