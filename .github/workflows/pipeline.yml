@@ -155,16 +155,25 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y jq curl
 
+      - name: Create env file for compose
+        run: |
+          cat <<EOF > .env
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_PASSWORD=supersecretpassword123
+          API_URL=http://api:8000
+          EOF
+
       - name: Start full stack
         run: |
-          docker compose up -d
+          docker compose up -d --build
 
       - name: Wait for API health
         run: |
           for i in {1..30}; do
-          curl -s http://localhost:8000/health && break
-          echo "Waiting for API..."
-          sleep 2
+            curl -s http://localhost:8000/health && break
+            echo "Waiting for API..."
+            sleep 2
           done
 
       - name: Submit job
@@ -181,16 +190,16 @@ jobs:
       - name: Poll job status
         run: |
           for i in {1..30}; do
-          STATUS=$(curl -s http://localhost:8000/jobs/$JOB_ID | jq -r '.status')
+            STATUS=$(curl -s http://localhost:8000/jobs/$JOB_ID | jq -r '.status')
 
-          echo "Current status: $STATUS"
+            echo "Current status: $STATUS"
 
-          if [ "$STATUS" = "completed" ]; then
-            echo "Job completed successfully"
-            exit 0
-          fi
+            if [ "$STATUS" = "completed" ]; then
+              echo "Job completed successfully"
+              exit 0
+            fi
 
-          sleep 2
+            sleep 2
           done
 
           echo "Job did not complete in time"
