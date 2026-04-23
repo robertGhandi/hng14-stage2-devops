@@ -190,8 +190,11 @@ jobs:
       - name: Poll job status
         run: |
           for i in {1..30}; do
-            STATUS=$(curl -s http://localhost:8000/jobs/$JOB_ID | jq -r '.status')
+            RESPONSE=$(curl -s http://localhost:8000/jobs/$JOB_ID)  
 
+            echo "Raw response: $RESPONSE"
+
+            STATUS=$(echo $RESPONSE | jq -r '.status // .job.status // empty')
             echo "Current status: $STATUS"
 
             if [ "$STATUS" = "completed" ]; then
