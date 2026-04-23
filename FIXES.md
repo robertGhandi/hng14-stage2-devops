@@ -244,3 +244,5 @@ Containers ran as root, violating security best practices.
 
 - **Fix:**  
 Created and switched to non-root users in all services.
+
+Base images contain upstream vulnerabilities inherited from Debian/Node distributions. These are outside application control and are monitored via CI scanning
