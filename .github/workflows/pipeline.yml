@@ -198,40 +198,40 @@ jobs:
     needs: integration-test
     if: github.ref == 'refs/heads/main'
 
-  steps:
-    - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Install Docker Compose
-      run: sudo apt-get update && sudo apt-get install -y docker-compose
+      - name: Install Docker Compose
+        run: sudo apt-get update && sudo apt-get install -y docker-compose
 
-    - name: Create env file
-      run: |
-        cat <<EOF > .env
-        REDIS_HOST=redis
-        REDIS_PORT=6379
-        REDIS_PASSWORD=supersecretpassword123
-        API_URL=http://api:8000
-        EOF
+      - name: Create env file
+        run: |
+          cat <<EOF > .env
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_PASSWORD=supersecretpassword123
+          API_URL=http://api:8000
+          EOF
 
-    - name: Pull latest images
-      run: |
-        docker compose pull || true
+      - name: Pull latest images
+        run: |
+          docker compose pull || true
 
-    - name: Start new version (rolling style)
-      run: |
-        docker compose up -d --build
+      - name: Start new version (rolling style)
+        run: |
+          docker compose up -d --build
 
-    - name: Wait for API health check (60s timeout)
-      run: |
-        for i in {1..30}; do
-          curl -f http://localhost:8000/health && echo "Healthy" && exit 0
-          echo "Waiting for health check..."
-          sleep 2
-        done
+      - name: Wait for API health check (60s timeout)
+        run: |
+          for i in {1..30}; do
+           curl -f http://localhost:8000/health && echo "Healthy" && exit 0
+           echo "Waiting for health check..."
+           sleep 2
+          done
 
-        echo "Health check failed"
-        exit 1
+          echo "Health check failed"
+          exit 1
 
-    - name: Cleanup old containers
-      if: success()
-      run: docker compose down -v
+      - name: Cleanup old containers
+        if: success()
+        run: docker compose down -v
