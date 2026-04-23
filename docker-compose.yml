@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
 
   api:
-    image: localhost:5000/api:latest
+    build: ./api
     environment:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
@@ -36,7 +36,7 @@ services:
     restart: unless-stopped
 
   worker:
-    image: localhost:5000/api:latest
+    build: ./worker
     environment:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: localhost:5000/api:latest
+    build: ./frontend
     environment:
       API_URL: ${API_URL}
     depends_on:
