@@ -174,9 +174,9 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{"task": "process"}')
 
-        echo "Response: $RESPONSE"
-        JOB_ID=$(echo $RESPONSE | jq -r '.id')
-        echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
+          echo "Response: $RESPONSE"
+          JOB_ID=$(echo $RESPONSE | jq -r '.id')
+          echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
 
       - name: Poll job status
         run: |
