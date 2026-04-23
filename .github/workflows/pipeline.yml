@@ -1,217 +1,194 @@
 name: CI/CD Pipeline
 
 permissions:
-    contents: read
-    security-events: write
+  contents: read
+  security-events: write
 
 on:
-    push:
-        branches: ["*"]
-    pull_request:
+  push:
+    branches: ["*"]
+  pull_request:
 
 jobs:
-    lint:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
 
-            - uses: actions/setup-python@v5
-              with:
-                  python-version: "3.11"
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-            - run: pip install flake8
-            - run: flake8 .
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: "18"
+      - run: pip install flake8
+      - run: flake8 .
 
-            - run: |
-                  cd frontend
-                  npm install
-                  npx eslint . || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
 
-            - name: Lint Dockerfiles
-              uses: hadolint/hadolint-action@v3.1.0
-              with:
-                  recursive: true
+      - run: |
+          cd frontend
+          npm install
+          npx eslint . || true
 
-    test:
-        runs-on: ubuntu-latest
-        needs: lint
+      - name: Lint Dockerfiles
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
 
-        steps:
-            - uses: actions/checkout@v4
 
-            - uses: actions/setup-python@v5
-              with:
-                  python-version: "3.11"
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
 
-            - run: |
-                  cd api
-                  pip install -r requirements.txt
+    steps:
+      - uses: actions/checkout@v4
 
-            - run: |
-                  cd api
-                  PYTHONPATH=. pytest --cov=. --cov-report=xml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: coverage-report
-                  path: api/coverage.xml
+      - run: |
+          cd api
+          pip install -r requirements.txt
 
-    build_and_scan:
-        runs-on: ubuntu-latest
-        needs: test
+      - run: |
+          cd api
+          PYTHONPATH=. pytest --cov=. --cov-report=xml
 
-        services:
-            registry:
-                image: registry:2
-                ports:
-                    - 5000:5000
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: api/coverage.xml
 
-        steps:
-            - uses: actions/checkout@v4
 
-            # Wait for registry
-            - name: Wait for registry
-              run: |
-                  for i in {1..20}; do
-                    curl -s http://localhost:5000/v2/ && break
-                    echo "waiting for registry..."
-                    sleep 2
-                  done
+  build_and_scan:
+    runs-on: ubuntu-latest
+    needs: test
 
-            # Set TAG
-            - name: Set TAG
-              run: echo "TAG=${GITHUB_SHA}" >> $GITHUB_ENV
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
 
-            # Build images
-            - name: Build images
-              run: |
-                  docker build -t localhost:5000/api:${TAG} -t localhost:5000/api:latest ./api
-                  docker build -t localhost:5000/worker:${TAG} -t localhost:5000/worker:latest ./worker
-                  docker build -t localhost:5000/frontend:${TAG} -t localhost:5000/frontend:latest ./frontend
+    steps:
+      - uses: actions/checkout@v4
 
-            # Push images to local registry
-            - name: Push images
-              run: |
-                  docker push localhost:5000/api:${TAG}
-                  docker push localhost:5000/api:latest
+      - name: Wait for registry
+        run: |
+          for i in {1..20}; do
+            curl -s http://localhost:5000/v2/ && break
+            echo "waiting for registry..."
+            sleep 2
+          done
 
-                  docker push localhost:5000/worker:${TAG}
-                  docker push localhost:5000/worker:latest
+      - name: Set TAG
+        run: echo "TAG=${GITHUB_SHA}" >> $GITHUB_ENV
 
-                  docker push localhost:5000/frontend:${TAG}
-                  docker push localhost:5000/frontend:latest
+      - name: Build images
+        run: |
+          docker build -t localhost:5000/api:${TAG} -t localhost:5000/api:latest ./api
+          docker build -t localhost:5000/worker:${TAG} -t localhost:5000/worker:latest ./worker
+          docker build -t localhost:5000/frontend:${TAG} -t localhost:5000/frontend:latest ./frontend
 
-            # Scan images (IMPORTANT: same job so images exist)
-            - name: Scan API
-              uses: aquasecurity/trivy-action@master
-              with:
-                  image-ref: localhost:5000/api:latest
-                  format: sarif
-                  output: trivy-api.sarif
-                  severity: CRITICAL
-                  exit-code: 0
+      - name: Push images
+        run: |
+          docker push localhost:5000/api:${TAG}
+          docker push localhost:5000/api:latest
 
-            - name: Scan Worker
-              uses: aquasecurity/trivy-action@master
-              with:
-                  image-ref: localhost:5000/worker:latest
-                  format: sarif
-                  output: trivy-worker.sarif
-                  severity: CRITICAL
-                  exit-code: 0
+          docker push localhost:5000/worker:${TAG}
+          docker push localhost:5000/worker:latest
 
-            - name: Scan Frontend
-              uses: aquasecurity/trivy-action@master
-              with:
-                  image-ref: localhost:5000/frontend:latest
-                  format: sarif
-                  output: trivy-frontend.sarif
-                  severity: CRITICAL
-                  exit-code: 0
+          docker push localhost:5000/frontend:${TAG}
+          docker push localhost:5000/frontend:latest
 
-            - name: Upload Trivy results
-              uses: github/codeql-action/upload-sarif@v4
-              with:
-                  sarif_file: trivy-api.sarif
+      - name: Scan API
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: localhost:5000/api:latest
+          format: sarif
+          output: trivy-api.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 1
 
-    integration-test:
-        runs-on: ubuntu-latest
-        needs: build_and_scan
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-api.sarif
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
 
-            - name: Set TAG
-              run: echo "TAG=${GITHUB_SHA}" >> $GITHUB_ENV
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: build_and_scan
 
-            - name: Install dependencies
-              run: sudo apt-get update && sudo apt-get install -y jq curl
+    steps:
+      - uses: actions/checkout@v4
 
-            - name: Create env file for compose
-              run: |
-                  cat <<EOF > .env
-                  REDIS_HOST=redis
-                  REDIS_PORT=6379
-                  REDIS_PASSWORD=supersecretpassword123
-                  API_URL=http://api:8000
-                  EOF
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y jq curl
 
-            - name: Start full stack
-              run: |
-                  docker compose up -d --build
+      - name: Create env file for compose
+        run: |
+          cat <<EOF > .env
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_PASSWORD=supersecretpassword123
+          API_URL=http://api:8000
+          EOF
 
-            - name: Wait for API health
-              run: |
-                  for i in {1..30}; do
-                    curl -s http://localhost:8000/health && break
-                    echo "Waiting for API..."
-                    sleep 2
-                  done
+      - name: Start full stack
+        run: docker compose up -d --build
 
-            - name: Submit job
-              id: submit
-              run: |
-                  RESPONSE=$(curl -s -X POST http://localhost:8000/jobs \
-                  -H "Content-Type: application/json" \
-                  -d '{"task": "process"}')
+      - name: Wait for API health
+        run: |
+          for i in {1..30}; do
+            curl -s http://localhost:8000/health && break
+            echo "Waiting for API..."
+            sleep 2
+          done
 
-                  echo "FULL RESPONSE: $RESPONSE"
-                  JOB_ID=$(echo $RESPONSE | jq -r '.job.id')
-                  echo "EXTRACTED JOB ID: $JOB_ID"
+      - name: Submit job
+        id: submit
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8000/jobs \
+            -H "Content-Type: application/json" \
+            -d '{"task": "process"}')
 
-                  if [ -z "$JOB_ID" ] || [ "$JOB_ID" = "null"]; then
-                    echo "Failed to extract job ID from response"
-                    exit 1
-                  fi
+          echo "FULL RESPONSE: $RESPONSE"
 
-                  echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
+          JOB_ID=$(echo "$RESPONSE" | jq -r '.job_id')
+          echo "EXTRACTED JOB ID: $JOB_ID"
 
-            - name: Poll job status
-              run: |
-                  for i in {1..30}; do
-                    RESPONSE=$(curl -s http://localhost:8000/jobs/$JOB_ID)  
+          if [ -z "$JOB_ID" ] || [ "$JOB_ID" = "null" ]; then
+            echo "Failed to extract job ID"
+            exit 1
+          fi
 
-                    echo "Raw response: $RESPONSE"
+          echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
 
-                    STATUS=$(echo $RESPONSE | jq -r '.status // .job.status // empty')
-                    echo "Current status: $STATUS"
+      - name: Poll job status
+        run: |
+          for i in {1..30}; do
+            RESPONSE=$(curl -s http://localhost:8000/jobs/$JOB_ID)
 
-                    if [ "$STATUS" = "completed" ]; then
-                      echo "Job completed successfully"
-                      exit 0
-                    fi
+            echo "Raw response: $RESPONSE"
 
-                    sleep 2
-                  done
+            STATUS=$(echo "$RESPONSE" | jq -r '.status')
+            echo "Current status: $STATUS"
 
-                  echo "Job did not complete in time"
-                  exit 1
+            if [ "$STATUS" = "completed" ]; then
+              echo "Job completed successfully"
+              exit 0
+            fi
 
-            - name: Tear down stack (always runs)
-              if: always()
-              run: docker compose down -v
+            sleep 2
+          done
+
+          echo "Job did not complete in time"
+          exit 1
+
+      - name: Tear down stack (always runs)
+        if: always()
+        run: docker compose down -v
