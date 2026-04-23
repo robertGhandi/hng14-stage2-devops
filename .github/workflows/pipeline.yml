@@ -183,8 +183,15 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{"task": "process"}')
 
-          echo "Response: $RESPONSE"
-          JOB_ID=$(echo $RESPONSE | jq -r '.id')
+          echo "FULL RESPONSE: $RESPONSE"
+          JOB_ID=$(echo $RESPONSE | jq -r '.id // .job.id // .data.id // empty')
+          echo "EXTRACTED JOB ID: $JOB_ID"
+
+          if [ -z "$JOB_ID" ]; then
+            echo "Failed to extract job ID from response"
+            exit 1
+          fi
+
           echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
 
       - name: Poll job status
