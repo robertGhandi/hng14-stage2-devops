@@ -14,20 +14,27 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: setup python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - run: pip install flake8
-      - run: flake8 .
+      - name: Install flake8
+        run: pip install flake8
 
-      - uses: actions/setup-node@v4
+      - name: run flak8
+        run: flake8 .
+
+      - name: setup node
+        uses: actions/setup-node@v4
         with:
           node-version: "18"
 
-      - run: |
+      - name: install dependencies
+        run: |
           cd frontend
           npm install
           npx eslint . || true
@@ -43,21 +50,26 @@ jobs:
     needs: lint
 
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout setup
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: setup python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - run: |
+      - name: install dependencies
+        run: |
           cd api
           pip install -r requirements.txt
 
-      - run: |
+      - name: pytest
+        run: |
           cd api
           PYTHONPATH=. pytest --cov=. --cov-report=xml
 
-      - uses: actions/upload-artifact@v4
+      - name: artifact upload
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: api/coverage.xml
@@ -74,7 +86,8 @@ jobs:
           - 5000:5000
 
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout setup
+        uses: actions/checkout@v4
 
       - name: Wait for registry
         run: |
@@ -124,7 +137,8 @@ jobs:
     needs: build_and_scan
 
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout setup
+        uses: actions/checkout@v4
 
       - name: Install tools
         run: sudo apt-get update && sudo apt-get install -y jq curl
@@ -199,7 +213,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout setup
+        uses: actions/checkout@v4
 
       - name: Install Docker Compose
         run: sudo apt-get update && sudo apt-get install -y docker-compose
